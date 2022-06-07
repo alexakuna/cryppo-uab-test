@@ -8,7 +8,7 @@
             </v-col>
             <v-col align="end">
               <v-btn
-                  @click="TEST"
+                  @click="dialog = true"
                   class="mr-4"
                   size="small"
                   icon="mdi-plus"
@@ -225,13 +225,6 @@ export default {
       this.comments = this.comments.filter(item => item.id !== id);
       localStorage.setItem('comments', JSON.stringify(this.comments))
     },
-    TEST() {
-      this.name = 'ASDASDAS';
-      this.email = 'ASDASDA@CVSDVS';
-      this.comment = 'CSDCSCZZXCZXC';
-      this.dialog = true;
-      this.$nextTick(() => this.$refs.form.validate())
-    }
   },
   mounted() {
     const comments = localStorage.getItem('comments');
