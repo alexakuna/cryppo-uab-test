@@ -2,10 +2,13 @@
   <v-app>
     <v-main class="mt-12">
         <v-container>
-          <v-row justify="end">
-            <v-col align="right">
+          <v-row justify="space-between">
+            <v-col>
+              <v-card-header-text>Total comments: {{ comments.length }}</v-card-header-text>
+            </v-col>
+            <v-col align="end">
               <v-btn
-                  @click="addComment()"
+                  @click="TEST"
                   class="mr-4"
                   size="small"
                   icon="mdi-plus"
@@ -40,7 +43,7 @@
               item-key="id"
           >
             <template #item="{ element }">
-              <tr style="cursor: pointer">
+              <tr style="cursor: pointer" @dblclick="editComment(element)">
                 <td>{{ element.name }}</td>
                 <td>{{ element.email }}</td>
                 <td>{{ element.body }}</td>
@@ -61,12 +64,79 @@
                     :start="start"
                     v-model="page"
                     class="my-4"
-                    :length="(comments.length / step).toFixed()"
+                    :length="counter"
                 ></v-pagination>
               </v-container>
             </v-col>
           </v-row>
         </v-container>
+      <v-row justify="center">
+        <v-dialog
+            width="420"
+            min-width="320"
+            v-model="dialog"
+            persistent
+        >
+          <v-card class="v-col-12">
+            <v-form
+                v-model="valid"
+                lazy-validation
+                ref="form"
+                style="width: 420px">
+              <v-card-title>
+                <span class="text-h5">Add some data</span>
+              </v-card-title>
+              <v-card-text>
+                <v-container>
+                  <v-row>
+                    <v-col cols="12">
+                      <v-text-field
+                          :rules="nameRules"
+                          v-model="name"
+                          label="Name"
+                          :counter="50"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12">
+                      <v-text-field
+                          :rules="emailRules"
+                          v-model="email"
+                          label="Email"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12">
+                      <v-textarea
+                          :rules="commentRules"
+                          v-model="comment"
+                          label="Comment"
+                          :counter="200"
+                      ></v-textarea>
+                    </v-col>
+                  </v-row>
+                </v-container>
+              </v-card-text>
+              <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn
+                    color="blue-darken-1"
+                    text
+                    @click="closeModal"
+                >
+                  Close
+                </v-btn>
+                <v-btn
+                    :disabled="!valid"
+                    :color="!valid ? 'disabled' : 'blue-darken-1'"
+                    text
+                    @click="saveData"
+                >
+                  Save
+                </v-btn>
+              </v-card-actions>
+            </v-form>
+          </v-card>
+        </v-dialog>
+      </v-row>
     </v-main>
   </v-app>
 </template>
@@ -80,8 +150,20 @@ export default {
     start: 1,
     page: 1,
     step: 10,
+    id: null,
+    valid: true,
+    name: '',
+    email: '',
+    comment: '',
+    counter: '',
+    dialog: false,
     comments: [],
-    sortedComments: []
+    editElement: '',
+    sortedComments: [],
+    nameRules: [v => !!v || 'Name is required', v => v.length >= 3 || 'Name must be less than 3 characters',
+      v => v.length <= 50 || 'Name must be less than 50 characters'],
+    emailRules: [v => !!v || 'E-mail is required', v => /.+@.+/.test(v) || 'E-mail must be valid'],
+    commentRules: [v => !!v || 'Comment is required', v => v.length <= 200 || 'Name must be less than 200 characters']
   }),
   components: {
     draggable,
@@ -105,20 +187,50 @@ export default {
     }
   },
   methods: {
-    addComment() {
-      this.comments.push({
-        id: this.comments.length + 1,
-        name: 'Den',
-        email: 'bar@mail.com',
-        body: 'Some text',
-        userId: 1
-      })
-      localStorage.setItem('comments', JSON.stringify(this.comments));
+    closeModal() {
+      this.name = '';
+      this.email = '';
+      this.comment = '';
+      this.dialog = false;
+    },
+    editComment(element) {
+      this.id = element.id;
+      this.name = element.name;
+      this.email = element.email;
+      this.comment = element.body;
+      this.dialog = true;
+      this.$nextTick(() => this.$refs.form.validate())
+    },
+    saveData() {
+      const comment = {
+        id: this.id || Date.now(),
+        name: this.name,
+        email: this.email,
+        body: this.comment
+      }
+      if (this.id) {
+        const index = this.comments.findIndex((item) => item.id === this.id)
+        this.comments.splice(index, 1, comment)
+      } else {
+        this.comments.unshift(comment)
+      }
+      console.log(this.comments.length)
+      localStorage.setItem('comments', JSON.stringify(this.comments))
+      this.name = '';
+      this.email = '';
+      this.comment = '';
+      this.dialog = false;
     },
     removeComment(id) {
-      console.log('Remove')
       this.comments = this.comments.filter(item => item.id !== id);
       localStorage.setItem('comments', JSON.stringify(this.comments))
+    },
+    TEST() {
+      this.name = 'ASDASDAS';
+      this.email = 'ASDASDA@CVSDVS';
+      this.comment = 'CSDCSCZZXCZXC';
+      this.dialog = true;
+      this.$nextTick(() => this.$refs.form.validate())
     }
   },
   mounted() {
@@ -128,12 +240,30 @@ export default {
         .then(response => response.json())
         .then(comments => {
           localStorage.setItem('comments', JSON.stringify(comments))
-          this.comments = comments
+          this.comments = comments;
+          this.counter = this.comments.length / this.step;
         })
         .catch(e => console.log(e))
     } else {
       this.comments = JSON.parse(comments);
+      this.counter = (this.comments.length / this.step).toFixed();
+      this.page = +localStorage.getItem('page') || 1
     }
   },
+  watch: {
+    'comments.length'(newValue, oldValue) {
+      if(oldValue === 0) return;
+      if (newValue > oldValue && (newValue % this.step) === 1) {
+        ++this.counter;
+      }
+      if (newValue < oldValue && (newValue % this.step) === 0) {
+        --this.counter;
+        this.page = this.page - 1;
+      }
+    },
+    page(newValue) {
+      localStorage.setItem('page', newValue)
+    }
+  }
 }
 </script>
